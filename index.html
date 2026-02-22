@@ -482,15 +482,40 @@ function showResult() {
 
   showScreen('result');
 
-  // Send data to Telegram
+  // Collect result data
+  const resultData = {
+    level: level,
+    title: title,
+    pct: pct,
+    answers: answers,
+    proof: answers._proofText || '',
+    tg_id: '',
+    tg_name: '',
+    tg_username: ''
+  };
+
+  // Get Telegram user info
+  if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe?.user) {
+    const u = Telegram.WebApp.initDataUnsafe.user;
+    resultData.tg_id = u.id || '';
+    resultData.tg_name = [u.first_name, u.last_name].filter(Boolean).join(' ');
+    resultData.tg_username = u.username || '';
+  }
+
+  // Send to Google Sheets
+  const SHEETS_URL = window.__SHEETS_URL || '';
+  if (SHEETS_URL) {
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(resultData)
+    }).catch(() => {});
+  }
+
+  // Send to Telegram bot (Mini App mode)
   if (window.Telegram && Telegram.WebApp) {
-    Telegram.WebApp.sendData(JSON.stringify({
-      level: level,
-      title: title,
-      pct: pct,
-      answers: answers,
-      proof: answers._proofText || ''
-    }));
+    Telegram.WebApp.sendData(JSON.stringify(resultData));
   }
 }
 
