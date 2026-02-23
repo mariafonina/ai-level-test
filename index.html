@@ -503,7 +503,7 @@ function showResult() {
   }
 
   // Send to Google Sheets
-  const SHEETS_URL = window.__SHEETS_URL || '';
+  const SHEETS_URL = window.__SHEETS_URL || 'https://script.google.com/macros/s/AKfycbz9jJXONnHWcPYNCs7HTODFg9M9dZe328HZZEVPq2G_76djUhj44wbmtHdqEtbrk4kwYg/exec';
   if (SHEETS_URL) {
     fetch(SHEETS_URL, {
       method: 'POST',
