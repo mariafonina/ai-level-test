@@ -289,6 +289,7 @@ const questions = [
 
 let currentQ = 0;
 let answers = {};
+let answersText = {};
 let selectedOptions = new Set();
 
 function showScreen(id) {
@@ -299,6 +300,7 @@ function showScreen(id) {
 function startTest() {
   currentQ = 0;
   answers = {};
+  answersText = {};
   renderQuestion();
   showScreen('question');
 }
@@ -309,6 +311,7 @@ function renderQuestion() {
   // Skip conditional questions
   if (q.condition && !q.condition(answers)) {
     answers[q.id] = 0;
+    answersText[q.id] = '(пропущен)';
     currentQ++;
     if (currentQ >= questions.length) { showResult(); return; }
     renderQuestion();
@@ -356,6 +359,7 @@ function renderQuestion() {
     btn.onclick = () => {
       if (q.type === 'single') {
         answers[q.id] = opt.score;
+        answersText[q.id] = opt.text;
         container.querySelectorAll('.option').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         // Auto-advance for single after brief delay
@@ -389,8 +393,10 @@ function renderQuestion() {
         }
         // Calculate multi score
         let total = 0;
-        selectedOptions.forEach(idx => { total += q.options[idx].score; });
+        let texts = [];
+        selectedOptions.forEach(idx => { total += q.options[idx].score; texts.push(q.options[idx].text); });
         answers[q.id] = total;
+        answersText[q.id] = texts.join(', ');
         document.getElementById('btn-next').style.display = selectedOptions.size > 0 ? 'block' : 'none';
       }
     };
@@ -488,6 +494,16 @@ function showResult() {
     title: title,
     pct: pct,
     answers: answers,
+    answersText: answersText,
+    experience: answersText.experience || '',
+    frequency: answersText.frequency || '',
+    tools: answersText.tools || '',
+    vpn: answersText.vpn || '',
+    techskill: answersText.techskill || '',
+    usage: answersText.usage || '',
+    prompting: answersText.prompting || '',
+    budget: answersText.budget || '',
+    selfassess: answersText.selfassess || '',
     proof: answers._proofText || '',
     tg_id: '',
     tg_name: '',
