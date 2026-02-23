@@ -84,6 +84,43 @@ body {
 .btn-primary:active { transform: scale(0.98); }
 .btn-next { margin-top: 16px; }
 
+/* Profile Card */
+.profile-card {
+  background: linear-gradient(135deg, #FFF5F8, #FFE0EC);
+  border-radius: 24px; padding: 32px 20px; text-align: center;
+  margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.profile-card::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: rgba(233,30,118,0.08);
+}
+.profile-avatar {
+  width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px;
+  border: 3px solid var(--pink); object-fit: cover;
+  background: var(--pink-light);
+}
+.profile-avatar-placeholder {
+  width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px;
+  border: 3px solid var(--pink); background: var(--pink-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+}
+.profile-name { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.profile-level-badge {
+  display: inline-block; padding: 6px 16px; border-radius: 20px;
+  background: var(--pink); color: white; font-size: 15px; font-weight: 700;
+  margin-bottom: 12px;
+}
+.profile-rank {
+  font-size: 14px; color: var(--text-light); margin-bottom: 8px;
+}
+.profile-rank strong { color: var(--pink-dark); font-size: 18px; }
+.profile-congrats {
+  font-size: 15px; line-height: 1.5; color: var(--text);
+  margin-top: 12px; padding: 0 8px;
+}
+
 /* Results */
 .result { text-align: center; padding: 20px 0; }
 .result-level { font-size: 48px; margin-bottom: 8px; }
@@ -191,15 +228,25 @@ body {
 <!-- Result Screen -->
 <div class="screen" id="screen-result">
   <div class="result">
-    <div class="result-level" id="r-emoji"></div>
-    <div class="result-title" id="r-title"></div>
-    <div class="result-subtitle" id="r-subtitle"></div>
-    <div class="score-bar"><span>Новичок</span><span>Пользователь</span><span>Продвинутый</span><span>Эксперт</span><span>Зверь</span></div>
+    <!-- Profile Card (Yandex-style) -->
+    <div class="profile-card" id="r-profile">
+      <div id="r-avatar-container"></div>
+      <div class="profile-name" id="r-profile-name"></div>
+      <div class="profile-level-badge" id="r-profile-badge"></div>
+      <div class="profile-rank" id="r-profile-rank"></div>
+      <div class="profile-congrats" id="r-profile-congrats"></div>
+    </div>
+
+    <div class="score-bar"><span>🌱</span><span>🔧</span><span>⚡</span><span>🧠</span><span>🦁</span></div>
     <div class="score-track"><div class="score-fill" id="r-score-fill"></div></div>
+
+    <!-- Inline stats -->
+    <div id="r-inline-stats" style="margin:16px 0"></div>
+
     <div class="result-desc" id="r-desc"></div>
     <div class="result-rec" id="r-rec"></div>
     <button class="btn btn-primary" onclick="shareResult()">Поделиться результатом</button>
-    <button class="btn btn-next" style="background:var(--white);color:var(--pink-dark);border:2px solid var(--pink-light);margin-top:12px" onclick="showLeaderboard()">🏆 Рейтинг участников</button>
+    <button class="btn btn-next" style="background:var(--white);color:var(--pink-dark);border:2px solid var(--pink-light);margin-top:12px" onclick="showLeaderboard()">🏆 Полный рейтинг</button>
   </div>
 </div>
 
@@ -543,12 +590,74 @@ function showResult() {
     rec = '<strong>Что вам подойдет:</strong> ЛАБС — даже для вас там будет вызов. Вайбкодинг, создание полноценных продуктов, обмен опытом с единомышленниками. А еще — приходите показать свои проекты, вы вдохновите других.';
   }
 
-  document.getElementById('r-emoji').textContent = emoji;
-  document.getElementById('r-title').textContent = title;
-  document.getElementById('r-subtitle').textContent = subtitle;
+  // Profile card
+  let userName = 'Участник';
+  let userPhoto = '';
+  if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe?.user) {
+    const u = Telegram.WebApp.initDataUnsafe.user;
+    userName = [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Участник';
+    userPhoto = u.photo_url || '';
+  }
+
+  const avatarContainer = document.getElementById('r-avatar-container');
+  if (userPhoto) {
+    avatarContainer.innerHTML = `<img class="profile-avatar" src="${userPhoto}" alt="" onerror="this.outerHTML='<div class=\\'profile-avatar-placeholder\\'>${emoji}</div>'">`;
+  } else {
+    avatarContainer.innerHTML = `<div class="profile-avatar-placeholder">${emoji}</div>`;
+  }
+
+  document.getElementById('r-profile-name').textContent = userName;
+  document.getElementById('r-profile-badge').textContent = `${emoji} ${title} — ${pct}%`;
+
+  // Congrats text
+  const congrats = {
+    1: 'Отличный старт! Вы уже сделали первый шаг — а это главное.',
+    2: 'Хорошая база! Вы на правильном пути к уверенному использованию ИИ.',
+    3: 'Впечатляет! Вы используете ИИ лучше большинства.',
+    4: 'Вау! Вы настоящий эксперт. Таких единицы.',
+    5: 'Легенда! Вы в топе самых продвинутых пользователей ИИ.'
+  };
+  document.getElementById('r-profile-congrats').textContent = congrats[level] || '';
+
   document.getElementById('r-score-fill').style.width = pct + '%';
   document.getElementById('r-desc').innerHTML = desc;
   document.getElementById('r-rec').innerHTML = rec;
+
+  // Fetch rank and show inline stats
+  document.getElementById('r-profile-rank').innerHTML = 'Загрузка рейтинга...';
+  document.getElementById('r-inline-stats').innerHTML = '';
+  fetch(SHEETS_READ_URL + '?action=leaderboard')
+    .then(r => r.json())
+    .then(data => {
+      lbData = data;
+      // Find rank
+      const top = data.top || [];
+      let rank = top.length + 1;
+      for (let i = 0; i < top.length; i++) {
+        if (pct >= top[i].pct) { rank = i + 1; break; }
+      }
+      document.getElementById('r-profile-rank').innerHTML = `В рейтинге: <strong>#${rank}</strong> из ${data.total || 1}`;
+
+      // Inline level distribution
+      const levels = data.levels || {};
+      const levelNames = ['Новичок', 'Пользователь', 'Продвинутый', 'Эксперт', 'Зверь'];
+      const levelEmojis = ['🌱', '🔧', '⚡', '🧠', '🦁'];
+      const total = data.total || 1;
+      const maxCount = Math.max(...levelNames.map(n => levels[n] || 0), 1);
+      let html = '<div class="lb-chart"><h3>Распределение участников</h3>';
+      levelNames.forEach((name, i) => {
+        const count = levels[name] || 0;
+        const p = Math.round(count / total * 100);
+        const w = Math.max(count / maxCount * 100, 2);
+        const isYou = name === title ? ' ← вы' : '';
+        html += `<div class="lb-bar-row"><div class="lb-bar-label">${levelEmojis[i]} ${name}</div><div class="lb-bar-track"><div class="lb-bar-fill" style="width:${w}%"></div><div class="lb-bar-val">${count} (${p}%)${isYou}</div></div></div>`;
+      });
+      html += '</div>';
+      document.getElementById('r-inline-stats').innerHTML = html;
+    })
+    .catch(() => {
+      document.getElementById('r-profile-rank').textContent = '';
+    });
 
   showScreen('result');
 
