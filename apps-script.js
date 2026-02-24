@@ -46,6 +46,57 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) || '';
+  
+  if (action === 'user') {
+    return getUserResult(e.parameter.tg_id || '');
+  }
+  
+  if (action === 'leaderboard') {
+    return getLeaderboard();
+  }
+  
+  if (action === 'clear') {
+    return clearResults();
+  }
+  
   return ContentService.createTextOutput('AI Level Test API is running')
     .setMimeType(ContentService.MimeType.TEXT);
+
+function getUserResult(tgId) {
+  if (!tgId) return jsonResponse({error: 'no tg_id'});
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var tgIdCol = headers.indexOf('Telegram ID');
+  
+  // Ищем последнюю запись с этим tg_id
+  var result = null;
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][tgIdCol]) === String(tgId)) {
+      result = {};
+      for (var j = 0; j < headers.length; j++) {
+        result[headers[j]] = data[i][j];
+      }
+      break;
+    }
+  }
+  
+  if (!result) return jsonResponse({error: 'not found'});
+  return jsonResponse(result);
+}
+
+function clearResults() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+  return jsonResponse({ok: true, deleted: lastRow - 1});
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 }
