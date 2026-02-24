@@ -816,14 +816,16 @@ function showResult() {
     }).catch(() => {});
   }
 
-  // Send to Telegram bot (Mini App mode) — Кью получает результаты через web_app_data
-  if (window.Telegram && Telegram.WebApp) {
-    Telegram.WebApp.sendData(JSON.stringify(resultData));
-  }
+  // Сохраняем для отправки при закрытии
+  window._lastResultData = resultData;
 }
 
 function shareResult() {
   if (window.Telegram && Telegram.WebApp) {
+    // Отправляем данные куратору перед закрытием
+    if (window._lastResultData) {
+      try { Telegram.WebApp.sendData(JSON.stringify(window._lastResultData)); } catch(e) {}
+    }
     Telegram.WebApp.close();
   }
 }
