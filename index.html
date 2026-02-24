@@ -224,6 +224,10 @@ body {
     <h1>Какой у тебя уровень ИИ?</h1>
     <p>9 вопросов. 2 минуты. Честный результат — без завышения и занижения.</p>
     <button class="btn btn-primary" onclick="startTest()">Начать тест</button>
+    <div id="resume-btn" style="display:none">
+      <button class="btn btn-next" style="background:var(--white);color:var(--pink-dark);border:2px solid var(--pink-light);margin-top:12px" onclick="resumeSaved()">▶️ Продолжить тест</button>
+    </div>
+    <div id="history-block" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -417,6 +421,50 @@ let answers = {};
 let answersText = {};
 let selectedOptions = new Set();
 
+// === Автосохранение ===
+function saveProgress() {
+  try {
+    localStorage.setItem('ai_test_progress', JSON.stringify({
+      currentQ, answers, answersText, ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function loadProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ai_test_progress'));
+    if (saved && saved.ts && (Date.now() - saved.ts < 3600000)) { // не старше 1 часа
+      return saved;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function clearProgress() {
+  try { localStorage.removeItem('ai_test_progress'); } catch(e) {}
+}
+
+// === История прохождений ===
+function saveToHistory(resultData) {
+  try {
+    const history = JSON.parse(localStorage.getItem('ai_test_history') || '[]');
+    history.unshift({
+      date: new Date().toLocaleString('ru-RU', {timeZone: 'Europe/Moscow'}),
+      level: resultData.level,
+      title: resultData.title,
+      pct: resultData.pct,
+      ts: Date.now()
+    });
+    // Храним макс 10 прохождений
+    if (history.length > 10) history.pop();
+    localStorage.setItem('ai_test_history', JSON.stringify(history));
+  } catch(e) {}
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('ai_test_history') || '[]'); } catch(e) { return []; }
+}
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
@@ -426,6 +474,15 @@ function startTest() {
   currentQ = 0;
   answers = {};
   answersText = {};
+  clearProgress();
+  renderQuestion();
+  showScreen('question');
+}
+
+function resumeTest(saved) {
+  currentQ = saved.currentQ;
+  answers = saved.answers;
+  answersText = saved.answersText;
   renderQuestion();
   showScreen('question');
 }
@@ -502,6 +559,7 @@ function renderQuestion() {
         // Auto-advance for single after brief delay
         setTimeout(() => {
           currentQ++;
+          saveProgress();
           if (currentQ >= questions.length) showResult();
           else renderQuestion();
         }, 300);
@@ -549,9 +607,11 @@ function nextQuestion() {
     answers._proofText = ta ? ta.value : '';
   }
   currentQ++;
+  saveProgress();
   if (currentQ >= questions.length) showResult();
   else renderQuestion();
 }
+
 
 function showResult() {
   // Scoring weights
@@ -706,6 +766,7 @@ function showResult() {
     nextLevelCard.style.display = 'none';
   }
 
+  clearProgress();
   showScreen('result');
 
   // Collect result data
@@ -744,6 +805,9 @@ function showResult() {
 
   // Send to Google Sheets (skip if excluded)
   const SHEETS_URL = window.__SHEETS_URL || 'https://script.google.com/macros/s/AKfycbz9jJXONnHWcPYNCs7HTODFg9M9dZe328HZZEVPq2G_76djUhj44wbmtHdqEtbrk4kwYg/exec';
+  // Сохраняем в историю
+  saveToHistory(resultData);
+
   if (SHEETS_URL && !isExcluded) {
     fetch(SHEETS_URL, {
       method: 'POST',
@@ -863,11 +927,44 @@ function renderTop(container) {
   container.innerHTML = `<div class="lb-list">${rows}</div>`;
 }
 
+function resumeSaved() {
+  const saved = loadProgress();
+  if (saved) resumeTest(saved);
+  else startTest();
+}
+
+function renderWelcome() {
+  // Показать кнопку «Продолжить» если есть сохранённый прогресс
+  const saved = loadProgress();
+  if (saved && saved.currentQ > 0) {
+    document.getElementById('resume-btn').style.display = 'block';
+  }
+  
+  // Показать историю прохождений
+  const history = getHistory();
+  const block = document.getElementById('history-block');
+  if (history.length > 0) {
+    const levelEmojis = {1:'🌱', 2:'🔧', 3:'⚡', 4:'🧠', 5:'🦁'};
+    let html = '<div style="text-align:left;background:var(--white);border-radius:16px;padding:16px;box-shadow:var(--shadow)">';
+    html += '<h3 style="font-size:16px;margin-bottom:12px">📋 Ваши прохождения</h3>';
+    history.forEach(h => {
+      const e = levelEmojis[h.level] || '?';
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+        <span>${e} ${h.title} — ${h.pct}%</span>
+        <span style="font-size:12px;color:var(--text-light)">${h.date}</span>
+      </div>`;
+    });
+    html += '</div>';
+    block.innerHTML = html;
+  }
+}
+
 // Init
 if (window.Telegram && Telegram.WebApp) {
   Telegram.WebApp.ready();
   Telegram.WebApp.expand();
 }
+renderWelcome();
 </script>
 </body>
 </html>
