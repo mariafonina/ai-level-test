@@ -816,7 +816,7 @@ function showResult() {
     }).catch(() => {});
   }
 
-  // Send to Telegram bot (Mini App mode)
+  // Send to Telegram bot (Mini App mode) — Кью получает результаты через web_app_data
   if (window.Telegram && Telegram.WebApp) {
     Telegram.WebApp.sendData(JSON.stringify(resultData));
   }
